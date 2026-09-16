@@ -24,4 +24,11 @@ test.describe('Home Page', () => {
     // Check that the welcome message is present using more specific locator
     await expect(page.getByText('Find your next game! And maybe even back one! Explore our collection!')).toBeVisible();
   });
+
+  test('should display catalog summary metrics', async ({ page }) => {
+    const summary = page.getByTestId('catalog-summary');
+    await expect(summary).toBeVisible();
+    await expect(page.getByTestId('catalog-total-games')).toContainText(/game/);
+    await expect(page.getByTestId('catalog-average-rating')).not.toBeEmpty();
+  });
 });

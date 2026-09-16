@@ -6,6 +6,7 @@ import {
     getAllGames,
     getAllGameIds,
     getGameById,
+    getCatalogSummary,
 } from './games';
 
 async function seedGames(db: Database, count: number): Promise<void> {
@@ -24,6 +25,27 @@ async function seedGames(db: Database, count: number): Promise<void> {
             title: `Game ${String(i).padStart(2, '0')}`,
             description: `Description ${i}`,
             starRating: 4.2,
+            categoryId: category.id,
+            publisherId: publisher.id,
+        });
+    }
+}
+
+async function seedGamesWithRatings(db: Database, ratings: Array<number | null>): Promise<void> {
+    const [category] = await db
+        .insert(categories)
+        .values({ name: 'Strategy', description: 'cat' })
+        .returning({ id: categories.id });
+    const [publisher] = await db
+        .insert(publishers)
+        .values({ name: 'Pub One', description: 'pub' })
+        .returning({ id: publishers.id });
+
+    for (let i = 0; i < ratings.length; i++) {
+        await db.insert(games).values({
+            title: `Rated Game ${String(i + 1).padStart(2, '0')}`,
+            description: `Description ${i + 1}`,
+            starRating: ratings[i],
             categoryId: category.id,
             publisherId: publisher.id,
         });
@@ -62,5 +84,28 @@ describe('games data-access helpers', () => {
     it('returns null for a non-existent game', async () => {
         await seedGames(db, 2);
         expect(await getGameById(db, 99999)).toBeNull();
+    });
+
+    it('returns catalog totals and average for rated games', async () => {
+        await seedGamesWithRatings(db, [4, null, 5]);
+        await expect(getCatalogSummary(db)).resolves.toEqual({
+            totalGames: 3,
+            averageStarRating: 4.5,
+        });
+    });
+
+    it('returns null average when no games are rated', async () => {
+        await seedGamesWithRatings(db, [null, null]);
+        await expect(getCatalogSummary(db)).resolves.toEqual({
+            totalGames: 2,
+            averageStarRating: null,
+        });
+    });
+
+    it('returns zero totals for an empty catalog', async () => {
+        await expect(getCatalogSummary(db)).resolves.toEqual({
+            totalGames: 0,
+            averageStarRating: null,
+        });
     });
 });
