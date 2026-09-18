@@ -41,8 +41,16 @@ describe('games data-access helpers', () => {
         await seedGames(db, 3);
         const all = await getAllGames(db);
         expect(all.map((g) => g.title)).toEqual(['Game 01', 'Game 02', 'Game 03']);
-        expect(all[0].category).toEqual({ id: expect.any(Number), name: 'Strategy' });
-        expect(all[0].publisher).toEqual({ id: expect.any(Number), name: 'Pub One' });
+        expect(all[0].category).toEqual({
+            id: expect.any(Number),
+            name: 'Strategy',
+            description: 'cat',
+        });
+        expect(all[0].publisher).toEqual({
+            id: expect.any(Number),
+            name: 'Pub One',
+            description: 'pub',
+        });
     });
 
     it('returns all game ids ordered by title', async () => {
@@ -62,5 +70,31 @@ describe('games data-access helpers', () => {
     it('returns null for a non-existent game', async () => {
         await seedGames(db, 2);
         expect(await getGameById(db, 99999)).toBeNull();
+    });
+
+    it('includes null relation descriptions when missing', async () => {
+        const [category] = await db
+            .insert(categories)
+            .values({ name: 'No Description Category', description: null })
+            .returning({ id: categories.id });
+        const [publisher] = await db
+            .insert(publishers)
+            .values({ name: 'No Description Publisher', description: null })
+            .returning({ id: publishers.id });
+        const [gameRow] = await db
+            .insert(games)
+            .values({
+                title: 'No Description Game',
+                description: 'Description',
+                starRating: 4.0,
+                categoryId: category.id,
+                publisherId: publisher.id,
+            })
+            .returning({ id: games.id });
+
+        const game = await getGameById(db, gameRow.id);
+
+        expect(game?.category?.description).toBeNull();
+        expect(game?.publisher?.description).toBeNull();
     });
 });
