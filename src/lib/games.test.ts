@@ -1,10 +1,12 @@
 import { describe, it, expect, beforeEach } from 'vitest';
+import { eq } from 'drizzle-orm';
 import { createTestDatabase } from '../../db/test-helpers';
 import { categories, publishers, games } from '../../db/schema';
 import type { Database } from './db';
 import {
     getAllGames,
     getAllGameIds,
+    getCatalogSummary,
     getGameById,
 } from './games';
 
@@ -50,6 +52,36 @@ describe('games data-access helpers', () => {
         const ids = await getAllGameIds(db);
         const all = await getAllGames(db);
         expect(ids).toEqual(all.map((g) => g.id));
+    });
+
+    it('summarizes all games and only their non-null ratings', async () => {
+        await seedGames(db, 3);
+        const ids = await getAllGameIds(db);
+        await db.update(games).set({ starRating: null }).where(eq(games.id, ids[0]));
+        await db.update(games).set({ starRating: 3.8 }).where(eq(games.id, ids[1]));
+        await db.update(games).set({ starRating: 4.6 }).where(eq(games.id, ids[2]));
+
+        const summary = await getCatalogSummary(db);
+
+        expect(summary.totalGames).toBe(3);
+        expect(summary.averageStarRating).toBeCloseTo(4.2);
+    });
+
+    it('returns an empty catalog summary when there are no games', async () => {
+        expect(await getCatalogSummary(db)).toEqual({
+            totalGames: 0,
+            averageStarRating: null,
+        });
+    });
+
+    it('returns no average when no games are rated', async () => {
+        await seedGames(db, 2);
+        await db.update(games).set({ starRating: null });
+
+        expect(await getCatalogSummary(db)).toEqual({
+            totalGames: 2,
+            averageStarRating: null,
+        });
     });
 
     it('fetches a single game by id', async () => {
