@@ -1,5 +1,54 @@
 import { test, expect, type Response } from '@playwright/test';
 
+test.describe('Game Title Search', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto('/');
+  });
+
+  test('filters by partial title as the user types and keeps matches keyboard-accessible', async ({ page }) => {
+    const search = page.getByRole('searchbox', { name: 'Search game titles' });
+    const results = page.getByTestId('games-grid').getByRole('link');
+
+    await test.step('Reach the labeled search input and type a mixed-case query', async () => {
+      await expect(search).toBeVisible();
+      await page.getByRole('banner').getByRole('link', { name: 'Tailspin Toys' }).focus();
+      await page.keyboard.press('Tab');
+      await expect(search).toBeFocused();
+      await expect(search).toHaveAttribute('data-testid', 'game-title-search');
+      await search.pressSequentially('oDySsEy');
+    });
+
+    await test.step('Verify only the matching card remains reachable', async () => {
+      await expect(results).toHaveCount(1);
+      await expect(results).toHaveText(/Code Quest Odyssey/);
+      await expect(page.getByRole('status')).toHaveText('1 game found.');
+      await page.keyboard.press('Tab');
+      await expect(results).toBeFocused();
+    });
+  });
+
+  test('shows an empty state and restores the catalog when cleared', async ({ page }) => {
+    const search = page.getByRole('searchbox', { name: 'Search game titles' });
+    const results = page.getByTestId('games-grid').getByRole('link');
+    const status = page.getByRole('status');
+    const initialCount = await results.count();
+
+    await test.step('Search for a publisher name that is not a game title', async () => {
+      await search.fill('CodeForge Studios');
+      await expect(results).toHaveCount(0);
+      await expect(status).toHaveText('No games match your search.');
+      await expect(status).toBeVisible();
+      await expect(search).toBeFocused();
+    });
+
+    await test.step('Clear the query to show all games again', async () => {
+      await search.fill('');
+      await expect(results).toHaveCount(initialCount);
+      await expect(status).toHaveText(`Showing all ${initialCount} games.`);
+    });
+  });
+});
+
 test.describe('Game Listing and Navigation', () => {
   test('should display games with titles on index page', async ({ page }) => {
     await test.step('Navigate to homepage', async () => {
