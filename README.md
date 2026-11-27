@@ -35,6 +35,8 @@ npm run dev
 
 `predev` migrates and seeds the local database first. Then navigate to the [website](http://localhost:4321) to see the site!
 
+On the home page, use **Search game titles** to filter the catalog as you type. Enter any part of a title, regardless of capitalization. Clear the search to see all games again.
+
 To preview a production build instead:
 
 ```bash
